@@ -1,11 +1,15 @@
 """Main entrypoint for this application"""
 import sys
+import time
 import logging
 import warnings
 import argparse
+from pathlib import Path
+from threading import Thread
 
 from parse import compile
 from paho.mqtt.client import Client, MQTTv31, MQTTv311, MQTTv5
+from persistqueue import Queue
 
 logger = logging.getLogger("mqtt")
 
@@ -44,6 +48,11 @@ def publish(mq: Client, parser: argparse.ArgumentParser, args: argparse.Namespac
     else:
         if not args.topic or not args.message:
             parser.error("A topic and a message must be specified on the command line.")
+        if args.queue:
+            parser.error("--queue may only be used together with --line")
+
+    if args.queue and args.qos > 0:
+        parser.error("--queue is only suitable for use together with qos=0")
 
     # Connect and start loop
     connect(mq, args)
@@ -52,14 +61,47 @@ def publish(mq: Client, parser: argparse.ArgumentParser, args: argparse.Namespac
     if pattern := args.line:
         parser = compile(pattern)
 
-        for line in sys.stdin:
-            result = parser.parse(line)
-            mq.publish(
-                topic=args.topic or result["topic"],
-                payload=args.message or result["message"],
-                qos=args.qos,
-                retain=args.retain,
-            )
+        if args.queue:
+            queue = Queue(args.queue)
+
+            def _putter():
+                for line in sys.stdin:
+                    queue.put(line)
+
+            t = Thread(target=_putter)
+            t.daemon = True
+            t.start()
+
+            while True:
+                if not mq.is_connected():
+                    time.sleep(1)
+                    continue
+
+                line = queue.get()
+                if result := parser.parse(line):
+                    mq.publish(
+                        topic=args.topic or result["topic"],
+                        payload=args.message or result["message"],
+                        qos=args.qos,
+                        retain=args.retain,
+                    )
+                else:
+                    logger.error("Failed to parse line: %s", line)
+
+                queue.task_done()
+
+        else:
+            for line in sys.stdin:
+                if result := parser.parse(line):
+                    mq.publish(
+                        topic=args.topic or result["topic"],
+                        payload=args.message or result["message"],
+                        qos=args.qos,
+                        retain=args.retain,
+                    )
+                else:
+                    logger.error("Failed to parse line: %s", line)
+
     else:
         mq.publish(
             topic=args.topic,
@@ -132,6 +174,7 @@ def main():
     publish_parser.add_argument("-m", "--message", type=str, default=None)
     publish_parser.add_argument("--line", type=str, default=None)
     publish_parser.add_argument("--retain", action="store_true", default=False)
+    publish_parser.add_argument("--queue", type=Path, default=None)
 
     publish_parser.set_defaults(func=publish)
 
