@@ -5,7 +5,10 @@ Use cases:
 * Trials
 * As part of a bash pipeline
 
-## Install
+## Installation
 `pip install mqtt-cli`
+
+## Usage
+`mqtt --help`
 
 TBC
