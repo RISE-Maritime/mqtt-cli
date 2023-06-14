@@ -1,6 +1,7 @@
 """Main entrypoint for this application"""
 import sys
 import time
+import atexit
 import logging
 import warnings
 import argparse
@@ -24,6 +25,9 @@ def connect(mq: Client, args: argparse.Namespace):
             logger.error(
                 "Disconnected from %s with reason code: %s", client, reason_code
             )
+
+    if args.transport == "websockets":
+        mq.ws_set_options(path=args.path)
 
     # Keyword argument handling
     kwargs = {}
@@ -110,6 +114,9 @@ def publish(mq: Client, parser: argparse.ArgumentParser, args: argparse.Namespac
             retain=args.retain,
         )
 
+    # Done, stop loop
+    mq.loop_stop()
+
 
 def subscribe(mq: Client, parser: argparse.ArgumentParser, args: argparse.Namespace):
     @mq.connect_callback()
@@ -157,6 +164,7 @@ def main():
     parser.add_argument(
         "--protocol", type=int, choices=[MQTTv31, MQTTv311, MQTTv5], default=MQTTv5
     )
+    parser.add_argument("--path", type=str, default="/mqtt")
     parser.add_argument("--tls", action="store_true", default=False)
     parser.add_argument("--clean-start", action="store_true", default=False)
     parser.add_argument("--log-level", type=int, default=logging.WARNING)
@@ -205,6 +213,8 @@ def main():
         mq.tls_set()
 
     mq.enable_logger(logger.getChild("paho.client"))
+
+    atexit.register(mq.disconnect)
 
     # Dispatch to correct function
     try:
