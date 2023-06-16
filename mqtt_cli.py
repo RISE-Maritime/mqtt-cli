@@ -62,6 +62,13 @@ def publish(mq: Client, parser: argparse.ArgumentParser, args: argparse.Namespac
     connect(mq, args)
     mq.loop_start()
 
+    # Dont start publishing until we are actually connected
+    logger.debug("Waiting for client to connect...")
+    while not mq.is_connected():
+        time.sleep(0.01)
+
+    logger.info("Successfully connected to broker!")
+
     if pattern := args.line:
         parser = compile(pattern)
 
