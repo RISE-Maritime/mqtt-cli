@@ -222,7 +222,11 @@ def main():
 
     mq.enable_logger(logger.getChild("paho.client"))
 
-    atexit.register(mq.disconnect)
+    def _disconnect():
+        if mq.is_connected():
+            mq.disconnect()
+
+    atexit.register(_disconnect)
 
     # Dispatch to correct function
     try:
