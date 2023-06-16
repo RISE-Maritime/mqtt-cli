@@ -9,8 +9,8 @@ from pathlib import Path
 from threading import Thread
 
 from parse import compile
-from paho.mqtt.client import Client, MQTTv31, MQTTv311, MQTTv5
 from persistqueue import Queue
+from paho.mqtt.client import Client, MQTTv31, MQTTv311, MQTTv5
 
 logger = logging.getLogger("mqtt")
 
@@ -114,7 +114,8 @@ def publish(mq: Client, parser: argparse.ArgumentParser, args: argparse.Namespac
             retain=args.retain,
         )
 
-    # Done, stop loop
+    # Done, stop loop, this will also join the background thread
+    # and ensure all queued messages get sent before exiting
     mq.loop_stop()
 
 
@@ -210,7 +211,7 @@ def main():
     )
     mq.username_pw_set(args.user, args.password)
     if args.tls:
-        mq.tls_set()
+        mq.tls_set_context()
 
     mq.enable_logger(logger.getChild("paho.client"))
 
