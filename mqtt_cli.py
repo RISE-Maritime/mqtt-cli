@@ -1,6 +1,7 @@
 """Main entrypoint for this application"""
 import sys
 import time
+import json
 import atexit
 import logging
 import warnings
@@ -20,7 +21,6 @@ def connect(mq: Client, args: argparse.Namespace):
     def _(
         client, userdata, flags, reason_code, props=None
     ):  # pylint: disable=unused-argument
-        """Subscribe on connect"""
         if reason_code != 0:
             logger.error(
                 "Disconnected from %s with reason code: %s", client, reason_code
@@ -57,6 +57,13 @@ def publish(mq: Client, parser: argparse.ArgumentParser, args: argparse.Namespac
 
     if args.queue and args.qos > 0:
         parser.error("--queue is only suitable for use together with qos=0")
+
+    @mq.connect_callback()
+    def _(client, userdata, flags, reason_code, properties):
+        if reason_code != 0:
+            logger.error(
+                "Connection failed to %s with reason code: %s", client, reason_code
+            )
 
     # Connect and start loop
     connect(mq, args)
@@ -150,6 +157,13 @@ def subscribe(mq: Client, parser: argparse.ArgumentParser, args: argparse.Namesp
             logger.exception(f"Could not decode payload: {message.payload}")
             return
 
+        if args.json:
+            try:
+                payload = json.dumps(json.loads(payload))
+            except json.JSONDecodeError:
+                logger.exception(f"Could not decode payload as JSON: {payload}")
+                return
+
         sys.stdout.write(f"{args.line.format(topic=topic, message=payload)}\n")
         sys.stdout.flush()
 
@@ -174,7 +188,7 @@ def main():
     )
     parser.add_argument("--path", type=str, default="/mqtt")
     parser.add_argument("--tls", action="store_true", default=False)
-    parser.add_argument("--clean-start", action="store_true", default=False)
+    parser.add_argument("--clean-start", action="store_true", default=True)
     parser.add_argument("--log-level", type=int, default=logging.WARNING)
 
     ## Subcommands
@@ -200,6 +214,7 @@ def main():
         "-t", "--topic", type=str, action="append", required=True
     )
     subscribe_parser.add_argument("--line", type=str, default="{message}")
+    subscribe_parser.add_argument("--json", action="store_true", default=False)
     subscribe_parser.set_defaults(func=subscribe)
 
     ## Parse arguments and start doing our thing
