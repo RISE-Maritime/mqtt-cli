@@ -13,7 +13,7 @@ def read(fname):
 
 setup(
     name="mqtt-cli",
-    version="0.3.3",
+    version="0.4.0",
     license="Apache License 2.0",
     description="CLI for Paho MQTT",
     long_description=read("README.md"),
