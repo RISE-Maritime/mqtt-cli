@@ -10,7 +10,7 @@ from pathlib import Path
 from threading import Thread
 
 from parse import compile
-from persistqueue import Queue
+from persistqueue import SQLiteQueue
 from paho.mqtt.client import Client, MQTTv31, MQTTv311, MQTTv5
 
 logger = logging.getLogger("mqtt")
@@ -59,7 +59,7 @@ def publish(mq: Client, parser: argparse.ArgumentParser, args: argparse.Namespac
         parser.error("--queue is only suitable for use together with qos=0")
 
     @mq.connect_callback()
-    def _(client, userdata, flags, reason_code, properties):
+    def _(client, userdata, flags, reason_code, *args):
         if reason_code != 0:
             logger.error(
                 "Connection failed to %s with reason code: %s", client, reason_code
@@ -80,7 +80,7 @@ def publish(mq: Client, parser: argparse.ArgumentParser, args: argparse.Namespac
         parser = compile(pattern)
 
         if args.queue:
-            queue = Queue(args.queue)
+            queue = SQLiteQueue(args.queue, multithreading=True, auto_commit=False)
 
             def _putter():
                 for line in sys.stdin:
