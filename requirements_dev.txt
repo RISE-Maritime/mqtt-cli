@@ -1,4 +1,4 @@
 -e .
 black==23.11.0
-pytest==8.0.2
+pytest==8.2.0
 build
