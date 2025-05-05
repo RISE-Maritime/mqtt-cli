@@ -13,7 +13,7 @@ def read(fname):
 
 setup(
     name="mqtt-cli",
-    version="0.4.1",
+    version="0.4.2",
     license="Apache License 2.0",
     description="CLI for Paho MQTT",
     long_description=read("README.md"),
@@ -30,5 +30,5 @@ setup(
         ],
     },
     python_requires=">=3.8",
-    install_requires=["paho-mqtt", "parse", "persist-queue"],
+    install_requires=["paho-mqtt>=2", "parse", "persist-queue"],
 )

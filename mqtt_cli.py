@@ -11,7 +11,7 @@ from threading import Thread
 
 from parse import compile
 from persistqueue import SQLiteQueue
-from paho.mqtt.client import Client, MQTTv31, MQTTv311, MQTTv5
+from paho.mqtt.client import Client, MQTTv31, MQTTv311, MQTTv5, CallbackAPIVersion
 
 logger = logging.getLogger("mqtt")
 
@@ -27,7 +27,9 @@ def connect(mq: Client, args: argparse.Namespace):
             )
 
     if args.transport == "websockets":
-        mq.ws_set_options(path=args.path)
+        mq.ws_set_options(
+            path=args.path if args.path.startswith("/") else f"/{args.path}"
+        )
 
     # Keyword argument handling
     kwargs = {}
@@ -229,7 +231,10 @@ def main():
 
     ## Construct client
     mq = Client(
-        client_id=args.clientid, transport=args.transport, protocol=args.protocol
+        callback_api_version=CallbackAPIVersion.VERSION2,
+        client_id=args.clientid,
+        transport=args.transport,
+        protocol=args.protocol,
     )
     mq.username_pw_set(args.user, args.password)
     if args.tls:
